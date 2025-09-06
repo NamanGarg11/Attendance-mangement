@@ -1,0 +1,181 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // switch to mysql/sqlite if you prefer
+  url      = env("DATABASE_URL")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model Department {
+  id        String     @id @default(uuid())
+  code      String     @unique
+  name      String
+  createdAt DateTime   @default(now())
+
+  teachers      Teacher[]
+  courses       Course[]
+  students      Student[]
+  offerings     CourseOffering[]
+}
+
+model Term {
+  id       String   @id @default(uuid())
+  code     String   @unique
+  startsOn DateTime
+  endsOn   DateTime
+
+  offerings CourseOffering[]
+}
+
+model Course {
+  id       String   @id @default(uuid())
+  deptId   String
+  code     String   @unique
+  title    String
+  credits  Int?
+
+  department Department @relation(fields: [deptId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  offerings  CourseOffering[]
+}
+
+model Teacher {
+  id        String   @id @default(uuid())
+  deptId    String
+  name      String
+  dob       DateTime?
+  email     String?  @unique
+  phoneE164 String?
+  address   String?
+  joinedAt  DateTime?
+  createdAt DateTime @default(now())
+
+  department   Department   @relation(fields: [deptId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  offerings    CourseOffering[] @relation("PrimaryTeacher")
+  assignments  TeacherAssignment[]
+}
+
+model Student {
+  id        String   @id @default(uuid())
+  deptId    String?
+  rollNo    String   @unique
+  name      String
+  dob       DateTime?
+  email     String?  @unique
+  phoneE164 String?
+  batch     String?
+  semester  Int?
+  section   String?
+  createdAt DateTime @default(now())
+
+  department Department?    @relation(fields: [deptId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  enrollments Enrollment[]
+  attendance  AttendanceRecord[]
+}
+
+model CourseOffering {
+  id          String   @id @default(uuid())
+  courseId    String
+  termId      String
+  section     String
+  deptId      String
+  primaryTeacherId String?
+
+  course     Course     @relation(fields: [courseId], references: [id])
+  term       Term       @relation(fields: [termId], references: [id])
+  department Department @relation(fields: [deptId], references: [id])
+  primaryTeacher Teacher? @relation("PrimaryTeacher", fields: [primaryTeacherId], references: [id])
+
+  enrollments Enrollment[]
+  assignments TeacherAssignment[]
+  sessions    ClassSession[]
+  timetable   TimetableRule[]
+}
+
+model TeacherAssignment {
+  id          String   @id @default(uuid())
+  offeringId  String
+  teacherId   String
+  role        String?
+
+  offering CourseOffering @relation(fields: [offeringId], references: [id])
+  teacher  Teacher        @relation(fields: [teacherId], references: [id])
+
+  @@unique([offeringId, teacherId])
+}
+
+model Enrollment {
+  id          String   @id @default(uuid())
+  offeringId  String
+  studentId   String
+  enrolledAt  DateTime @default(now())
+
+  offering CourseOffering @relation(fields: [offeringId], references: [id])
+  student  Student        @relation(fields: [studentId], references: [id])
+
+  @@unique([offeringId, studentId])
+}
+
+model Classroom {
+  id       String @id @default(uuid())
+  code     String @unique
+  capacity Int?
+
+  timetableRules TimetableRule[]
+  sessions       ClassSession[]
+}
+
+model TimetableRule {
+  id          String   @id @default(uuid())
+  offeringId  String
+  rrule       String? // recurrence rule string
+  roomId      String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+
+  offering CourseOffering @relation(fields: [offeringId], references: [id])
+  room     Classroom?     @relation(fields: [roomId], references: [id])
+}
+
+model ClassSession {
+  id          String   @id @default(uuid())
+  offeringId  String
+  dateLocal   DateTime
+  startsAt    DateTime
+  endsAt      DateTime
+  sequenceNo  Int?
+  roomId      String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  offering   CourseOffering @relation(fields: [offeringId], references: [id])
+  room       Classroom?     @relation(fields: [roomId], references: [id])
+  attendance AttendanceRecord[]
+}
+
+model AttendanceRecord {
+  id        String   @id @default(uuid())
+  sessionId String
+  studentId String
+  status    AttendanceStatus
+  markedAt  DateTime @default(now())
+  markedBy  String?
+  source    String?
+  note      String?
+
+  session ClassSession @relation(fields: [sessionId], references: [id])
+  student Student      @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+}

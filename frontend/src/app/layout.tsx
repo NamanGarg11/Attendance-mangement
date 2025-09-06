@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
 import BackToTopButton from "@/components/ui/BackToTopButton"
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,7 +26,8 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.variable} antialiased`}>
         {/* Global Navigation */}
-        <Navbar />
+        <GoogleOAuthProvider clientId={process.env.NEXT_GOOGLE_CLIENT_ID!}>
+          <Navbar />
 
         {/* Page Content */}
         <main className="min-h-screen">{children}</main>
@@ -33,6 +35,7 @@ export default function RootLayout({
         {/* Notifications + Helpers */}
         <Toaster />
         <BackToTopButton />
+        </GoogleOAuthProvider>
       </body>
     </html>
   );
